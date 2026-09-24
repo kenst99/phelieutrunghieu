@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>CTY TRUNG HIẾU – Phế Liệu</title>
+
+<!-- ===== PWA: Manifest & Icon ===== -->
+<meta name="description" content="Quản lý bãi phế liệu Trung Hiếu: bảng kê nhập, tồn kho, xuất hàng, tài chính và trợ lý AI giọng nói.">
+<link rel="manifest" href="manifest.json"/>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png"/>
+<link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
+<link rel="shortcut icon" href="favicon.ico"/>
+
+<!-- ===== PWA: iPhone / iOS Safari ===== -->
+<link rel="apple-touch-icon" href="icons/icon-180.png"/>
+<link rel="apple-touch-icon" sizes="120x120" href="icons/icon-120.png"/>
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png"/>
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Trung Hiếu">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1C1408">
+<meta name="format-detection" content="telephone=no">
+<style>
+/* Tránh bị tai thỏ/thanh home iPhone che nội dung khi chạy chế độ standalone */
+body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+</style>
+
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/tinhtien.css">
+<link rel="stylesheet" href="css/v3.css">
+</head>
+<body>
+
+<!-- ══ MÀN HÌNH CHỜ ══ -->
+<div class="th3-splash" id="th3Splash" aria-hidden="true">
+  <img src="icons/logo-copper.png" alt="">
+  <div class="th3-splash-name">PHẾ LIỆU TRUNG HIẾU</div>
+  <div class="th3-splash-bar"></div>
+</div>
+
+<!-- ══ HEADER ══ -->
+<div class="app-hdr">
+  <div class="hdr-top">
+    <div class="hdr-logo">
+      <div class="th3-hdr-mark"><img src="icons/logo-copper.png" alt="Logo Trung Hiếu"></div>
+      <div class="th3-hdr-txt">
+        <div class="hdr-badge">⚙ PHẾ LIỆU</div>
+        <div class="hdr-name">CTY TRUNG HIẾU</div>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <div class="sync-dot" id="syncDot"></div>
+      <button class="btn-sync" id="btnSync" onclick="doSync()">
+        <span class="si">↻</span>Đồng Bộ
+      </button>
+      <button class="btn-sync" id="btnTinhTienHdr" onclick="openTinhTien()" style="background:linear-gradient(135deg,#B7410E,#E8631F);border:1px solid #CD7F32;">
+        <span class="si">💰</span>TÍNH TIỀN
+      </button>
+    </div>
+  </div>
+  <!-- TABS NXT (Nhập-Xuất-Tồn) — shown when bottom nav = nxt -->
+  <div class="main-tabs" id="tabsNXT">
+    <div class="main-tab active" id="tab-ton" onclick="switchTab('ton',this)">TỒN</div>
+    <div class="main-tab" id="tab-nhap" onclick="switchTab('nhap',this)">NHẬP</div>
+    <div class="main-tab" id="tab-xuat" onclick="switchTab('xuat',this)">XUẤT</div>
+  </div>
+  <!-- TABS TC (Tài Chính) — shown when bottom nav = tc -->
+  <div class="main-tabs" id="tabsTC">
+    <div class="main-tab active" id="tab-vanhanh" onclick="switchTCTab('vanhanh',this)">VẬN HÀNH</div>
+    <div class="main-tab" id="tab-thuchi" onclick="switchTCTab('thuchi',this)">THU - CHI</div>
+  </div>
+</div>
+
+<!-- ══ SCROLL BODY ══ -->
+<div class="scroll-body" id="scrollBody">
+
+<!-- ══ PANE TỔNG QUAN (V3) — nội dung do js/v3/dashboard.js dựng ══ -->
+<div class="pane active" id="pane-tongquan"></div>
+
+<!-- ══ PANE TỒN ══ -->
+<div class="pane" id="pane-ton">
+  <div class="sheet-card">
+    <div class="sc-title">⚡ Kết Nối Google Sheet</div>
+    <div class="sc-row">
+      <input type="url" class="sc-inp" id="sheetUrl" placeholder="Dán link Google Sheet (Sheets API JSON)..." inputmode="url">
+      <button class="btn-conn" onclick="doSync()">Đồng Bộ</button>
+    </div>
+    <div class="auto-badge"><div class="ab-dot"></div>TỰ ĐỘNG ĐỒNG BỘ 5 PHÚT / LẦN</div>
+    <div class="sync-result-card" id="syncResultCard"></div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card kc-sat"><div class="kpi-glow"></div>
+      <div class="kpi-sku">SKU: ST-001</div><div class="kpi-label">TỒN SẮT</div>
+      <div class="kpi-val" id="kv-sat">–<span class="kpi-unit">kg</span></div>
+      <div class="kpi-sub">Vốn: <b id="ks-sat">–</b></div>
+    </div>
+    <div class="kpi-card kc-tole"><div class="kpi-glow"></div>
+      <div class="kpi-sku">SKU: TL-042</div><div class="kpi-label">TỒN TOLE</div>
+      <div class="kpi-val" id="kv-tole">–<span class="kpi-unit">kg</span></div>
+      <div class="kpi-sub">Vốn: <b id="ks-tole">–</b></div>
+    </div>
+    <div class="kpi-card kc-lon"><div class="kpi-glow"></div>
+      <div class="kpi-sku">SKU: LN-015</div><div class="kpi-label">TỒN LON</div>
+      <div class="kpi-val" id="kv-lon">–<span class="kpi-unit">kg</span></div>
+      <div class="kpi-sub">Vốn: <b id="ks-lon">–</b></div>
+    </div>
+    <div class="kpi-card kc-sac"><div class="kpi-glow"></div>
+      <div class="kpi-sku">SKU: SD-088</div><div class="kpi-label">TỒN Sắt ĐẶC</div>
+      <div class="kpi-val" id="kv-sac">–<span class="kpi-unit">kg</span></div>
+      <div class="kpi-sub">Vốn: <b id="ks-sac">–</b></div>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-hdr">
+      <div><div class="chart-title">PHÂN TÍCH TRỮ LƯỢNG</div><div class="chart-sub">Khối lượng &amp; vốn tồn kho</div></div>
+      <div class="leg-wrap">
+        <div class="leg"><div class="leg-dot" style="background:var(--sat)"></div>Sắt</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--tole)"></div>Tole</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--lon)"></div>Lon</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--sac)"></div>Sắt đặc</div>
+      </div>
+    </div>
+    <div class="mountain-wrap"><canvas id="mCanvas"></canvas></div>
+  </div>
+  <div class="sum-row">
+    <div class="sum-pill"><div class="sum-label">Tổng KL</div><div class="sum-val" id="total-kl">–<span class="sum-unit">kg</span></div></div>
+    <div class="sum-pill"><div class="sum-label">Tổng Vốn</div><div class="sum-val white" id="total-von">–<span class="sum-unit">VNĐ</span></div></div>
+  </div>
+  <div class="sum-row" style="margin-top:0;">
+    <div class="sum-pill"><div class="sum-label">Giá Trị Hiện Tại</div><div class="sum-val" style="color:var(--copper-b);font-size:17px;" id="total-gtht">–<span class="sum-unit">VNĐ</span></div></div>
+    <div class="sum-pill"><div class="sum-label">Tốc Độ TB 3 Ngày</div><div class="sum-val green" id="speed-3d">–<span class="sum-unit">kg/ngày</span></div></div>
+  </div>
+  <div class="gia-card">
+    <div class="gia-title">💰 Giá Thị Trường Hiện Tại (đ/kg)</div>
+    <div class="gia-grid">
+      <div class="gia-item"><label>Sắt</label><input type="number" id="gia-sat" class="gia-inp" placeholder="0" oninput="updateGTHT()"></div>
+      <div class="gia-item"><label>Tole</label><input type="number" id="gia-tole" class="gia-inp" placeholder="0" oninput="updateGTHT()"></div>
+      <div class="gia-item"><label>Lon</label><input type="number" id="gia-lon" class="gia-inp" placeholder="0" oninput="updateGTHT()"></div>
+      <div class="gia-item"><label>Sắt Đặc</label><input type="number" id="gia-sac" class="gia-inp" placeholder="0" oninput="updateGTHT()"></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn-big" onclick="openConvert()"><span>⇄</span>CHUYỂN ĐỔI</button>
+    <button class="btn-big blue" onclick="baoCaoTon()"><span>📊</span>BÁO CÁO TỒN</button>
+  </div>
+</div><!-- /pane-ton -->
+
+<!-- ══ PANE NHẬP ══ -->
+<div class="pane" id="pane-nhap">
+  <!-- QA MODAL -->
+  <div class="qa-overlay" id="qaOverlay" onclick="closeQAOnBg(event)">
+    <div class="qa-modal">
+      <div class="qa-header"><h4>➕ Thêm nhanh vào Danh Bạ</h4><button class="btn-qa-close" onclick="closeQAModal()">✕</button></div>
+      <div class="qa-body">
+        <div class="qa-field"><label>Tên khách hàng *</label><input type="text" id="qaName" readonly style="background:#f8fafc;color:#334155;font-weight:700;"></div>
+        <div class="qa-field"><label>Số tài khoản</label><input type="text" id="qaSTK" placeholder="Số tài khoản (nếu có)"></div>
+        <div class="qa-field"><label>Ngân hàng</label><input type="text" id="qaBank" placeholder="Tên ngân hàng"></div>
+        <div class="qa-parsed" id="qaParsed"></div>
+        <div class="qa-field"><label>Ghi chú</label><input type="text" id="qaNote" placeholder="Ghi chú (tuỳ chọn)"></div>
+      </div>
+      <div class="qa-actions">
+        <button class="btn-qa-save" onclick="saveQACustomer()">💾 Lưu vào Danh Bạ</button>
+        <button class="btn-qa-cancel" onclick="closeQAModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MULTI FILTER MODAL (từ bangke.html) -->
+  <div class="qa-overlay" id="mfOverlay" onclick="closeMFOnBg(event)">
+    <div class="qa-modal" style="width:500px">
+      <div class="qa-header" style="background:linear-gradient(135deg,#3730a3,#4f46e5)">
+        <h4>🔍 Lọc Nhiều Khách Hàng</h4>
+        <button class="btn-qa-close" onclick="closeMFModal()">✕</button>
+      </div>
+      <div class="qa-body" style="max-height:55vh;overflow-y:auto;">
+        <div style="display:flex;gap:10px;margin-bottom:6px;">
+          <button class="btn-kh-go" onclick="mfSelectAll()">☑️ Chọn tất cả</button>
+          <button class="btn-kh-reset" onclick="mfClearAll()">☐ Bỏ chọn tất cả</button>
+        </div>
+        <div id="mfCustomerList" class="mf-list"></div>
+      </div>
+      <div class="qa-actions">
+        <button class="btn-qa-save" style="background:linear-gradient(135deg,#3730a3,#4f46e5)" onclick="applyMultiFilter()">🔍 Áp dụng lọc</button>
+        <button class="btn-qa-cancel" onclick="closeMFModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD / EDIT ROW MODAL (từ bangke.html) -->
+  <div class="qa-overlay" id="arOverlay" onclick="closeAROnBg(event)">
+    <div class="qa-modal" style="width:480px">
+      <div class="qa-header" style="background:linear-gradient(135deg,#92400e,#f59e0b)">
+        <h4 id="arModalTitle">➕ Thêm Dòng Vào Bảng Kê</h4>
+        <button class="btn-qa-close" onclick="closeAddRowModal()">✕</button>
+      </div>
+      <div class="qa-body" style="max-height:65vh;overflow-y:auto;">
+        <div class="qa-field"><label>Khách Hàng *</label><input type="text" id="arKhachHang" placeholder="Tên khách hàng"></div>
+        <div class="qa-field"><label>Mặt Hàng</label><input type="text" id="arMatHang" placeholder="Sắt / Tole / Lon / Sắt đặc..." list="arMatHangList"></div>
+        <datalist id="arMatHangList"><option value="Sắt"><option value="Tole"><option value="Lon"><option value="Sắt đặc"></datalist>
+        <div class="qa-field"><label>KL Xe Hàng (kg)</label><input type="number" id="arKLXeHang" placeholder="0" step="0.01" inputmode="decimal" oninput="calcKLHang()"></div>
+        <div class="qa-field"><label>KL Xe (kg)</label><input type="number" id="arKLXe" placeholder="0" step="0.01" inputmode="decimal" oninput="calcKLHang()"></div>
+        <div class="qa-field"><label>KL Hàng (kg) <span class="ar-hint">= KL Xe Hàng − KL Xe</span></label><input type="number" id="arKLHang" placeholder="0" step="0.01" inputmode="decimal" oninput="calcKLThuc()"></div>
+        <div class="qa-field"><label>KL Tạp Chất (kg)</label><input type="number" id="arKLTapChat" placeholder="0" step="0.01" inputmode="decimal" oninput="calcKLThuc()"></div>
+        <div class="qa-field"><label>KL Thực (kg) <span class="ar-hint">= KL Hàng − KL Tạp Chất</span></label><input type="number" id="arKLThuc" placeholder="0" step="0.01" inputmode="decimal" oninput="calcTienTT()"></div>
+        <div class="qa-field"><label>Giá TT (đ/kg)</label><input type="number" id="arGiaTT" placeholder="0" step="1" inputmode="numeric" oninput="calcTienTT()"></div>
+        <div class="qa-field"><label>Tiền TT (đ) <span class="ar-hint">= KL Thực × Giá TT</span></label><input type="number" id="arTienTT" placeholder="0" step="1" inputmode="numeric"></div>
+        <div class="qa-field"><label>Ghi chú</label><input type="text" id="arGhiChu" placeholder="Ghi chú (tuỳ chọn)"></div>
+      </div>
+      <div class="qa-actions">
+        <button class="btn-qa-save" id="arConfirmBtn" onclick="confirmAddRow()">✅ Xác nhận thêm dòng</button>
+        <button class="btn-qa-cancel" onclick="closeAddRowModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- KHUNG ẨN ĐỂ RENDER ẢNH BÁO CÁO -->
+  <div id="report-render-container" style="position:absolute;left:-9999px;top:0;z-index:-1;"></div>
+
+  <!-- BANGKE MAIN -->
+  <div class="container">
+    <div class="header bk-hero">
+      <div class="bk-hero-title"><img src="icons/logo-copper.png" alt="" class="bk-hero-logo"><h2>HỆ THỐNG XỬ LÝ BẢNG KÊ</h2></div>
+      <div class="bk-hero-btns">
+        <button class="btn-kh-fixed" onclick="openKH()">👤 KHÁCH HÀNG</button>
+        <button class="btn-log-fixed" onclick="openNhatKy()">📋 NHẬT KÝ</button>
+      </div>
+    </div>
+    <div class="customer-panel">
+      <div class="cp-header" onclick="toggleCustPanel()">
+        <div class="cp-header-left"><span>📂</span><h3>Danh Bạ Khách Hàng</h3><span class="cp-badge" id="cpBadge">0</span></div>
+        <span class="cp-toggle-icon" id="cpToggleIcon">▾</span>
+      </div>
+      <div class="cp-body" id="cpBody">
+        <div class="cp-search-bar">
+          <div class="cp-search-wrap">
+            <span class="cp-search-icon">🔍</span>
+            <input type="text" id="cpSearch" placeholder="Tìm tên khách hàng..." autocomplete="off"
+              oninput="onCustSearch(this.value)" onkeydown="onCustSearchKey(event)" onfocus="showSuggestions()">
+            <div class="cp-suggestions" id="cpSuggestions"></div>
+          </div>
+          <div class="cp-import-row">
+            <input type="file" id="importCustExcel" accept=".xlsx,.xls">
+            <button class="btn-import" onclick="importCustomerExcel()">📥 Nạp Excel</button>
+            <button class="btn-add-new" onclick="toggleCustForm()">➕ Thêm mới</button>
+            <button class="btn-export-danhba" onclick="exportDanhBaExcel()">📤 Xuất Excel</button>
+            <button class="btn-delete-all" onclick="deleteAllCustomers()">🗑 Xóa hết</button>
+          </div>
+        </div>
+        <div class="cp-form" id="cpForm">
+          <div class="cp-form-title" id="cpFormTitle">➕ Thêm khách hàng mới</div>
+          <input type="hidden" id="editIndex" value="-1">
+          <div class="cp-form-fields">
+            <input type="text" id="c_name" placeholder="Tên khách hàng *">
+            <input type="text" id="c_stk" placeholder="Số tài khoản">
+            <input type="text" id="c_bank" placeholder="Ngân hàng">
+            <input type="text" id="c_note" placeholder="Ghi chú">
+          </div>
+          <div class="cp-form-actions">
+            <button class="btn-save-cust" onclick="saveToDirectory()">💾 Lưu</button>
+            <button class="btn-cancel-cust" onclick="cancelCustForm()">✕ Hủy</button>
+          </div>
+        </div>
+        <div class="cust-table-area" id="custTableBody"></div>
+        <div class="cust-count-row" id="custCountRow">Tổng: 0 khách hàng</div>
+      </div>
+    </div>
+    <div class="control-panel">
+      <label><b>Chọn File Dữ Liệu: </b></label>
+      <input type="file" id="upload" accept=".xlsx,.xls">
+      <div class="bk-src-row">
+        <button type="button" class="btn-drive-load" id="btnDriveLoad" onclick="loadFromDriveGAS()">📂 Tải từ Drive (bangketheongay)</button>
+        <a href="javascript:void(0)" class="bk-src-link" onclick="configGasUrl()">⚙️ Cấu hình API</a>
+      </div>
+      <div id="weatherPicker">
+        <span style="font-size:13px;font-weight:700;color:#92400e;margin-right:10px;">🌡️ Thời tiết hôm nay:</span>
+        <span style="display:inline-flex;gap:8px;flex-wrap:wrap;align-items:center;vertical-align:middle;">
+          <button type="button" class="btn-weather" data-value="Nắng" onclick="selectWeather(this)">☀️</button>
+          <button type="button" class="btn-weather" data-value="Mát" onclick="selectWeather(this)">☁️</button>
+          <button type="button" class="btn-weather" data-value="Mưa nhỏ" onclick="selectWeather(this)">🌧️</button>
+          <button type="button" class="btn-weather" data-value="Mưa lớn" onclick="selectWeather(this)">⛈️</button>
+        </span>
+        <span id="weatherLabel" style="margin-left:12px;font-size:14px;color:#1e3a5f;font-weight:700;"></span>
+      </div>
+      <div class="group-buttons">
+        <button class="btn-process" onclick="processAndPreview()">👀 XEM</button>
+        <button class="btn-copy" id="copyBtn" onclick="copyTableData()" disabled>📋 Copy Nhanh</button>
+        <button class="btn-quick-report" id="quickReportBtn" onclick="generateReportImage()" disabled>🧾 Báo cáo ảnh</button>
+        <button class="btn-checklist-ck" id="checklistCkBtn" onclick="openCheckListCK()" disabled>✅ CHECK LIST CK</button>
+        <button class="btn-mf" onclick="openMultiFilterModal()">🔍 Lọc Nhiều Khách</button>
+        <button class="btn-addrow" onclick="openAddRowModal()">➕ Thêm Dòng</button>
+        <button class="btn-oil-main" onclick="openOilModal()">⛽️ Giá Dầu</button>
+        <button class="btn-price-main" onclick="openPriceModal()">⚙️ Điều chỉnh giá</button>
+        <button class="btn-price-main" onclick="openTinhTien()" style="background:linear-gradient(135deg,#B7410E,#E8631F);border:1px solid #CD7F32;color:#fff;">💰 TÍNH TIỀN</button>
+      </div>
+    </div>
+    <!-- Oil Modal -->
+    <div class="oil-overlay" id="oilOverlay" onclick="closeOilOnBg(event)">
+      <div class="oil-modal">
+        <div class="oil-header"><h4>⛽️ Cập nhật Giá Dầu</h4><button class="btn-oil-close" onclick="closeOilModal()">✕</button></div>
+        <div class="oil-body">
+          <div class="oil-current" id="oilCurrentLabel">Giá hiện tại: chưa cài đặt</div>
+          <div class="oil-field"><label>Giá dầu mới (VNĐ/lít)</label><input type="number" id="oilInput" placeholder="21500" min="0" step="100"></div>
+        </div>
+        <div class="oil-actions">
+          <button class="btn-oil-save" onclick="saveOilPrice()">💾 Lưu &amp; Áp dụng</button>
+          <button class="btn-oil-cancel" onclick="closeOilModal()">Hủy</button>
+        </div>
+      </div>
+    </div>
+    <!-- Price Modal -->
+    <div class="price-overlay" id="priceOverlay" onclick="closePriceOnBg(event)">
+      <div class="price-modal">
+        <div class="price-header"><h4>⚙️ Điều chỉnh Giá Thu Mua</h4><button class="btn-price-close" onclick="closePriceModal()">✕</button></div>
+        <div class="price-body">
+          <div class="price-section-title">🍋 Tôi (giá của tôi)</div>
+          <div class="price-field"><label>Tôi Sắt (đ/kg)</label><input type="number" id="priceToiSat" min="0" step="50"></div>
+          <div class="price-field"><label>Tôi Tole (đ/kg)</label><input type="number" id="priceToiTole" min="0" step="50"></div>
+          <div class="price-field"><label>Tôi Lon (đ/kg)</label><input type="number" id="priceToiLon" min="0" step="50"></div>
+          <div class="price-section-title">🏭 Nhà máy</div>
+          <div class="price-field"><label>NM Sắt (đ/kg)</label><input type="number" id="priceNMSat" min="0" step="50"></div>
+          <div class="price-field"><label>NM Tole (đ/kg)</label><input type="number" id="priceNMTole" min="0" step="50"></div>
+          <div class="price-field"><label>NM Lon (đ/kg)</label><input type="number" id="priceNMLon" min="0" step="50"></div>
+        </div>
+        <div class="price-actions">
+          <button class="btn-price-save" onclick="savePrices()">💾 Lưu &amp; Áp dụng</button>
+          <button class="btn-price-cancel" onclick="closePriceModal()">Hủy</button>
+        </div>
+      </div>
+    </div>
+    <!-- CheckList CK Modal -->
+    <div class="ckl-overlay" id="cklOverlay" onclick="closeCkOnBg(event)">
+      <div class="ckl-modal">
+        <div class="ckl-header">
+          <h4>✅ CHECK LIST CK — Khách chưa chuyển khoản</h4>
+          <button class="btn-ckl-close" onclick="closeCheckListCK()">✕</button>
+        </div>
+        <div class="ckl-toolbar">
+          <span class="ckl-status">👥 <b id="cklCount">0</b> khách hàng &nbsp;|&nbsp; Tổng: <b id="cklTotal">0</b> đ</span>
+          <button class="btn-ckl-save" onclick="saveAndMarkCK()">💾 LƯU VÀ ĐÁNH DẤU</button>
+        </div>
+        <div class="ckl-table-wrap" id="cklTableWrap"></div>
+      </div>
+    </div>
+    <div class="filter-section" id="filterSection" style="display:none;">
+      <div class="filter-container">
+        <div>
+          <label><b>Bộ lọc: </b></label>
+          <select id="customerFilter" onchange="renderTable()" style="padding:10px;border-radius:4px;min-width:250px;font-size:15px;"></select>
+        </div>
+        <div id="summaryLine"></div>
+      </div>
+    </div>
+    <div id="preview-area"></div>
+  </div><!-- /container -->
+</div><!-- /pane-nhap -->
+
+<!-- ══ PANE XUẤT ══ -->
+<div class="pane" id="pane-xuat">
+
+  <!-- ─── PHƯƠNG TIỆN ─── -->
+  <div class="xuat-card">
+    <div class="xuat-section-title">🚢 PHƯƠNG TIỆN VẬN TẢI</div>
+    <div class="xuat-vehicle-row">
+      <!-- Sà lan -->
+      <div class="xuat-vehicle active" id="xveh-salan" onclick="xuatSelectVehicle(0,event)">
+        <svg viewBox="0 0 80 58" width="56" height="42" style="display:block;margin:0 auto 6px;">
+          <defs><linearGradient id="xsg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#CD7F32"/><stop offset="100%" style="stop-color:#A0522D"/>
+          </linearGradient></defs>
+          <path d="M5 36 L15 19 L65 19 L75 36 Z" fill="url(#xsg)" opacity="0.9"/>
+          <rect x="20" y="9" width="40" height="12" rx="2" fill="#E8A96A"/>
+          <rect x="28" y="1" width="18" height="10" rx="2" fill="#CD7F32"/>
+          <rect x="30" y="3" width="4" height="3" rx="1" fill="#111008" opacity="0.7"/>
+          <rect x="36" y="3" width="4" height="3" rx="1" fill="#111008" opacity="0.7"/>
+          <rect x="42" y="3" width="4" height="3" rx="1" fill="#111008" opacity="0.7"/>
+          <rect x="54" y="5" width="5" height="8" rx="1" fill="#A0522D"/>
+          <path d="M2 40 Q20 37 40 40 Q60 43 78 40" stroke="#3b82f6" stroke-width="1.5" fill="none" opacity="0.5"/>
+          <path d="M8 36 L12 48 L68 48 L72 36 Z" fill="#7c4a1a" opacity="0.6"/>
+        </svg>
+        <div class="xveh-label">SÀ LAN</div>
+      </div>
+      <!-- Xe Cont -->
+      <div class="xuat-vehicle" id="xveh-xe" onclick="xuatSelectVehicle(1,event)">
+        <svg viewBox="0 0 90 58" width="56" height="44" style="display:block;margin:0 auto 6px;">
+          <defs>
+            <linearGradient id="xtg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#64748b"/><stop offset="100%" style="stop-color:#374151"/>
+            </linearGradient>
+            <linearGradient id="xcg" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#4a5568"/><stop offset="100%" style="stop-color:#2d3748"/>
+            </linearGradient>
+          </defs>
+          <rect x="2" y="10" width="62" height="32" rx="2" fill="url(#xcg)"/>
+          <line x1="18" y1="10" x2="18" y2="42" stroke="#2d3748" stroke-width="1.5"/>
+          <line x1="34" y1="10" x2="34" y2="42" stroke="#2d3748" stroke-width="1.5"/>
+          <line x1="50" y1="10" x2="50" y2="42" stroke="#2d3748" stroke-width="1.5"/>
+          <rect x="2" y="10" width="62" height="4" rx="1" fill="#718096"/>
+          <rect x="64" y="19" width="24" height="23" rx="3" fill="url(#xtg)"/>
+          <path d="M66 21 L86 21 L86 30 L66 30 Z" fill="#1a202c" opacity="0.8"/>
+          <circle cx="18" cy="46" r="6" fill="#1a1c1e" stroke="#4a5568" stroke-width="1.5"/>
+          <circle cx="18" cy="46" r="3" fill="#374151"/>
+          <circle cx="52" cy="46" r="6" fill="#1a1c1e" stroke="#4a5568" stroke-width="1.5"/>
+          <circle cx="52" cy="46" r="3" fill="#374151"/>
+          <circle cx="74" cy="46" r="5" fill="#1a1c1e" stroke="#4a5568" stroke-width="1.5"/>
+          <circle cx="74" cy="46" r="2.5" fill="#374151"/>
+          <text x="6" y="31" font-size="4.5" fill="rgba(232,169,106,0.6)" font-family="monospace" font-weight="bold">TRUNG HIẾU</text>
+        </svg>
+        <div class="xveh-label" id="xveh-xe-lbl" style="color:rgba(232,169,106,0.4)">XE CONT</div>
+      </div>
+    </div>
+    <!-- Trọng tải -->
+    <div class="xuat-field-label">Trọng tải (tấn)</div>
+    <div class="xuat-tonnage-row" id="xuat-tonnage-opts"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <input type="number" id="xuat-tonnage-custom" placeholder="Tự nhập tấn..." inputmode="decimal"
+             class="xuat-inp" style="flex:1;" oninput="xuatUpdateTonnage()">
+      <span style="color:var(--text-f);font-size:12px;">tấn</span>
+    </div>
+  </div>
+
+  <!-- ─── THÔNG TIN GIAO HÀNG ─── -->
+  <div class="xuat-card">
+    <div class="xuat-section-title">📋 THÔNG TIN GIAO HÀNG</div>
+    <div class="xuat-field-label">Khách hàng</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <select id="xuat-customer" class="xuat-inp" style="flex:1;">
+        <option>Chú Chung</option><option>Anh Tưởng</option><option>Chị Uyên</option>
+      </select>
+      <button class="xuat-btn-sm" onclick="xuatAddCustomer()">＋</button>
+    </div>
+    <div class="xuat-field-label">Nơi giao hàng</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px;">
+      <select id="xuat-delivery" class="xuat-inp" style="flex:1;">
+        <option>TÂY ĐÔ - CẦN THƠ</option><option>POMINA - VŨNG TÀU</option><option>TUNGHO - VŨNG TÀU</option>
+      </select>
+      <button class="xuat-btn-sm" onclick="xuatAddDelivery()">＋</button>
+    </div>
+    <div class="xuat-field-label">Tiền vận chuyển (VNĐ)</div>
+    <input id="xuat-ship-cost" type="text" class="xuat-inp" value="1.000.000" style="margin-bottom:10px;"
+           oninput="xuatFormatCurrency(this)" inputmode="numeric">
+    <div class="xuat-field-label">% PHA cho phép</div>
+    <select id="xuat-pha-pct" class="xuat-inp" style="margin-bottom:6px;" onchange="xuatOnPhaChange()">
+      <option value="3">3%</option>
+      <option value="10">10%</option>
+      <option value="custom">✏️ Tự điền kg...</option>
+    </select>
+    <div id="xuat-pha-custom-row" style="display:none;flex;gap:6px;margin-top:6px;">
+      <input type="number" id="xuat-pha-kg" placeholder="Nhập kg PHA" inputmode="decimal"
+             class="xuat-inp" style="flex:1;" oninput="xuatApplyPhaKg()">
+      <span style="color:var(--copper-b);font-size:12px;align-self:center;">kg</span>
+    </div>
+  </div>
+
+  <!-- ─── TRẠNG THÁI KHO ─── -->
+  <div class="xuat-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div class="xuat-section-title" style="margin-bottom:0;">🏭 KHO & TẢI HÀNG</div>
+      <button class="xuat-btn-sm" onclick="xuatSyncFromTon()" style="font-size:10px;padding:5px 10px;">↻ Đồng bộ Tồn</button>
+    </div>
+    <div style="font-size:10px;color:var(--text-f);margin-bottom:12px;">
+      <span style="color:#3B82F6">■</span> Còn &nbsp;<span style="color:#93c5fd">■</span> Đã tải
+      &nbsp;·&nbsp;<span style="font-style:italic">PHA &amp; Tole dùng chung tồn</span>
+    </div>
+    <div id="xuat-bars-container" style="display:flex;flex-direction:column;gap:14px;"></div>
+  </div>
+
+  <!-- ─── XEM NHANH LỜI LỖ ─── -->
+  <div class="xuat-card" id="xuat-profit-section">
+    <div class="xuat-section-title">💰 XEM NHANH LỜI LỖ
+      <span style="font-size:9px;color:var(--text-f);font-weight:400;margin-left:4px;">— nhấn giữ số để sửa</span>
+    </div>
+
+    <!-- Bảng Chi phí -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:#f87171;letter-spacing:1px;margin-bottom:7px;">CHI PHÍ (GIÁ VỐN)</div>
+      <div id="xuat-cost-table"></div>
+    </div>
+    <!-- Bảng Doanh thu -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:700;color:#4ade80;letter-spacing:1px;margin-bottom:7px;">DOANH THU (GIÁ BÁN)</div>
+      <div id="xuat-rev-table"></div>
+    </div>
+
+    <!-- Summary -->
+    <div style="background:rgba(183,65,14,0.08);border:1px solid rgba(205,127,50,0.25);border-radius:12px;padding:13px;">
+      <div style="margin-bottom:10px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--text-f);margin-bottom:3px;">TIỀN VẬN CHUYỂN</div>
+        <div id="xuat-ship-display" style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:#fb923c;">–</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--text-f);margin-bottom:3px;">LỢI NHUẬN</div>
+        <div id="xuat-profit-display" style="font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:#4ade80;">–</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="xuatCopyReport()" class="xuat-btn-action" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);color:var(--text);">
+          📋 COPY TEXT
+        </button>
+        <button onclick="xuatExportImage()" class="xuat-btn-action" style="background:linear-gradient(135deg,var(--rust),var(--copper));color:#fff;border:none;">
+          🖼 XUẤT ẢNH
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /pane-xuat -->
+
+<!-- ══ XUAT IMAGE MODAL ══ -->
+<div id="xuat-img-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9999;
+     flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;">
+  <p style="color:#e2e2e5;font-size:12px;text-align:center;">📱 Nhấn giữ ảnh → <b>Lưu ảnh</b><br>💻 Nhấn nút tải xuống</p>
+  <img id="xuat-preview-img" style="max-width:92vw;max-height:60vh;border-radius:12px;box-shadow:0 6px 32px rgba(0,0,0,0.8);" alt="preview"/>
+  <div style="display:flex;gap:10px;">
+    <a id="xuat-dl-link" download="loi-lo.png"
+       style="background:#CD7F32;color:#fff;font-weight:700;padding:11px 22px;border-radius:12px;text-decoration:none;font-size:13px;">⬇ Tải PNG</a>
+    <button onclick="document.getElementById('xuat-img-modal').style.display='none'"
+            style="background:#282a2c;color:#e2e2e5;font-weight:600;padding:11px 18px;border-radius:12px;border:none;cursor:pointer;font-size:13px;">Đóng</button>
+  </div>
+</div>
+
+<!-- ══ INLINE EDIT POPOVER ══ -->
+<div id="xuat-edit-popover" style="display:none;position:fixed;z-index:9998;background:#1E1408;
+     border:1px solid var(--bd-hi);border-radius:12px;padding:14px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+  <div style="font-size:10px;letter-spacing:1px;color:var(--text-f);margin-bottom:7px;" id="xuat-popover-label"></div>
+  <input type="number" id="xuat-popover-inp" inputmode="decimal"
+         style="width:100%;padding:10px;background:rgba(0,0,0,0.5);border:1px solid var(--rust);border-radius:8px;
+                color:var(--text);font-size:16px;font-family:'Barlow Condensed',sans-serif;outline:none;">
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button onclick="xuatPopoverConfirm()" style="flex:1;padding:9px;background:linear-gradient(135deg,var(--rust),var(--copper));
+            border:none;border-radius:8px;color:#fff;font-weight:700;font-size:13px;cursor:pointer;">✓ Lưu</button>
+    <button onclick="xuatPopoverClose()" style="padding:9px 14px;background:rgba(255,255,255,0.06);border:1px solid var(--bd);
+            border-radius:8px;color:var(--text-f);font-size:13px;cursor:pointer;">✕</button>
+  </div>
+</div>
+
+<!-- ══ PANE VẬN HÀNH (under TÀI CHÍNH tab) ══ -->
+<!-- ══ PANE VẬN HÀNH (Tài Chính tab 1) ══ -->
+<div class="pane" id="pane-vanhanh" style="display:none;">
+  <div class="tc-section-slab">
+    <div class="tc-section-title">💼 LƯƠNG THÁNG <button class="tc-add-btn" data-tc-group="salary">+</button></div>
+    <div class="tc-cost-list" id="tc-salary-container"></div>
+    <div class="tc-edit-hint">✧ Nhấn 2 lần để sửa · Bật "Lặp lại" để tự tính đầu tháng</div>
+  </div>
+  <div class="tc-section-slab">
+    <div class="tc-section-title">🛢 DẦU &amp; NHỚT <button class="tc-add-btn" data-tc-group="oil">+</button></div>
+    <div class="tc-cost-list" id="tc-oil-container"></div>
+  </div>
+  <div class="tc-section-slab">
+    <div class="tc-section-title">⚡ ĐIỆN · NƯỚC · MẠNG · CAMERA <button class="tc-add-btn" data-tc-group="utilities">+</button></div>
+    <div class="tc-cost-list" id="tc-utilities-container"></div>
+  </div>
+  <div class="tc-section-slab">
+    <div class="tc-section-title">📦 KHÁC <button class="tc-add-btn" data-tc-group="other">+</button></div>
+    <div class="tc-cost-list" id="tc-other-container"></div>
+  </div>
+  <!-- Báo cáo Vận Hành -->
+  <button onclick="tcCaptureVanHanhReport()" style="width:100%;background:linear-gradient(135deg,var(--rust),var(--copper));border:none;border-radius:6px;padding:12px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:800;letter-spacing:1.5px;color:#fff;cursor:pointer;margin-top:4px;">📊 BÁO CÁO CHI PHÍ VẬN HÀNH</button>
+  <div id="tc-vh-report-preview" style="margin-top:8px;font-size:10px;color:rgba(254,215,170,0.4);text-align:center;"></div>
+</div>
+
+<!-- ══ PANE THU-CHI (Tài Chính tab 2) ══ -->
+<div class="pane" id="pane-thuchi" style="display:none;">
+  <div class="tc-section-slab">
+    <div class="tc-section-title" style="justify-content:space-between;">
+      <span>📒 NHẬT KÝ THU / CHI</span>
+      <button onclick="tcOpenAddLog()" style="background:rgba(183,65,14,0.3);border:1px solid var(--rust);color:var(--copper-p);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;padding:5px 12px;border-radius:4px;cursor:pointer;white-space:nowrap;">+ THÊM DÒNG</button>
+    </div>
+    <div id="tc-log-container"></div>
+    <div class="tc-summary-row">
+      <div class="tc-summary-pill">
+        <div class="tc-sp-lbl">Tổng Thu</div>
+        <div class="tc-sp-val tc-thu-val" id="tc-total-thu">–</div>
+      </div>
+      <div class="tc-summary-pill">
+        <div class="tc-sp-lbl">Tổng Chi</div>
+        <div class="tc-sp-val tc-chi-val" id="tc-total-chi">–</div>
+      </div>
+      <div class="tc-summary-pill">
+        <div class="tc-sp-lbl">Lãi / Lỗ</div>
+        <div class="tc-sp-val" id="tc-net">–</div>
+      </div>
+    </div>
+    <div id="tc-report-preview" style="margin-top:10px;font-size:10px;color:rgba(254,215,170,0.4);"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: THÊM / SỬA LOG THU-CHI ══ -->
+<div id="tc-log-modal" style="display:none;position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);">
+  <div style="position:absolute;bottom:0;left:0;right:0;background:var(--iron-m);border-top:2px solid var(--rust);border-radius:16px 16px 0 0;padding:20px 16px calc(env(safe-area-inset-bottom,0px) + 20px);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span id="tc-modal-title" style="font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:800;letter-spacing:1px;color:var(--copper-p);">THÊM DÒNG MỚI</span>
+      <button onclick="tcCloseModal()" style="background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:0 4px;">✕</button>
+    </div>
+
+    <!-- TYPE: THU / CHI -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;letter-spacing:1.2px;color:rgba(254,215,170,0.45);text-transform:uppercase;margin-bottom:8px;">Loại</div>
+      <div style="display:flex;gap:8px;">
+        <button id="tc-modal-btn-thu" onclick="tcModalSelectType('THU')" style="flex:1;padding:10px 0;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;letter-spacing:1px;border:2px solid rgba(205,127,50,0.3);border-radius:6px;background:rgba(205,127,50,0.08);color:var(--copper-b);cursor:pointer;">💰 THU</button>
+        <button id="tc-modal-btn-chi" onclick="tcModalSelectType('CHI')" style="flex:1;padding:10px 0;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;letter-spacing:1px;border:2px solid rgba(183,65,14,0.3);border-radius:6px;background:rgba(183,65,14,0.08);color:var(--rust-l);cursor:pointer;">💸 CHI</button>
+      </div>
+    </div>
+
+    <!-- HẠNG MỤC -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;letter-spacing:1.2px;color:rgba(254,215,170,0.45);text-transform:uppercase;margin-bottom:8px;">Hạng Mục</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;" id="tc-cat-btns"></div>
+    </div>
+
+    <!-- NỘI DUNG -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:10px;letter-spacing:1.2px;color:rgba(254,215,170,0.45);text-transform:uppercase;margin-bottom:6px;">Nội Dung</div>
+      <input id="tc-modal-desc" type="text" placeholder="Mô tả giao dịch..." style="width:100%;background:rgba(20,12,4,0.9);border:1px solid rgba(183,65,14,0.35);border-radius:6px;padding:10px 12px;font-family:'Barlow',sans-serif;font-size:14px;color:var(--text);outline:none;">
+    </div>
+
+    <!-- SỐ TIỀN -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:10px;letter-spacing:1.2px;color:rgba(254,215,170,0.45);text-transform:uppercase;margin-bottom:6px;">Số Tiền (₫)</div>
+      <input id="tc-modal-amt" type="number" inputmode="numeric" placeholder="0" style="width:100%;background:rgba(20,12,4,0.9);border:1px solid rgba(183,65,14,0.35);border-radius:6px;padding:10px 12px;font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;color:var(--copper-p);outline:none;">
+    </div>
+
+    <!-- BUTTONS -->
+    <div style="display:flex;gap:8px;">
+      <button id="tc-modal-delete-btn" onclick="tcModalDelete()" style="display:none;flex:1;padding:12px;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;color:#ef4444;cursor:pointer;">🗑 XÓA</button>
+      <button onclick="tcModalSave()" style="flex:2;padding:12px;background:linear-gradient(135deg,var(--rust),var(--copper));border:none;border-radius:6px;font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:800;letter-spacing:1.5px;color:#fff;cursor:pointer;">✓ LƯU</button>
+    </div>
+  </div>
+</div>
+
+<div class="pane" id="pane-kh" style="display:none;padding:0;"></div>
+
+<div class="pane" id="pane-chung" style="display:none;">
+  <div class="chung-title">TRUNG TÂM ĐIỀU HÀNH</div>
+  <div class="menu-grid">
+     <div class="menu-item mi-teal copper-bg" onclick="setNavBtn(document.getElementById('nb-nxt'));showNXTPane();switchTab('nhap',document.getElementById('tab-nhap'))">
+      <div class="menu-icon">📥</div><div class="menu-label">Bảng Kê Nhập Hàng</div><div class="menu-sub">XU LY BANG KE NHAP</div>
+    </div>
+    <div class="menu-item mi-orange" onclick="setNavBtn(document.getElementById('nb-nxt'));showNXTPane();switchTab('xuat',document.getElementById('tab-xuat'))">
+      <div class="menu-icon">📤</div><div class="menu-label">Bảng Kê Xuất Hàng</div><div class="menu-sub">Xử lý bảng kê xuất</div>
+    </div>
+    <div class="menu-item mi-blue" onclick="setNavBtn(document.getElementById('nb-nxt'));showNXTPane();switchTab('ton',document.getElementById('tab-ton'))">
+      <div class="menu-icon">🏭</div><div class="menu-label">Bảng Kê Tồn</div><div class="menu-sub">Phân tích tồn kho</div>
+    </div>
+    <div class="menu-item mi-purple" onclick="openKH()">
+      <div class="menu-icon">👥</div><div class="menu-label">Danh Bạ Khách Hàng</div><div class="menu-sub">Lịch sử giao dịch</div>
+    </div>
+    <div class="menu-item mi-orange copper-bg" onclick="openTinhTien()">
+      <div class="menu-icon">💰</div><div class="menu-label">TÍNH TIỀN</div><div class="menu-sub">Tính tiền phế liệu - Copy bảng kê</div>
+    </div>
+  
+ <div class="menu-item mi-green copper-bg" onclick="openNhatKy()">
+      <div class="menu-icon">📋</div><div class="menu-label">NHẬT KÝ NHẬP</div><div class="menu-sub">CHI TIET LOG NHAP</div>
+    </div>
+    <div class="menu-item mi-rust" onclick="appToast('Nhật Ký Xuất Hàng đang phát triển...')">
+      <div class="menu-icon">📑</div><div class="menu-label">Nhật Ký Xuất Hàng</div><div class="menu-sub">Chi tiết LOG xuất</div>
+    </div>
+    <div class="menu-item mi-yellow" onclick="openHanhChinh()">
+      <div class="menu-icon">🏢</div><div class="menu-label">Hành Chính</div><div class="menu-sub">Quản lý hành chính</div>
+    </div>
+    <div class="menu-item mi-red" onclick="setNavBtn(document.getElementById('nb-tc'));openTCPane();setTimeout(function(){switchTCTab('vanhanh',document.getElementById('tab-vanhanh'));},60)">
+      <div class="menu-icon">⚙️</div><div class="menu-label">Chi Phí Vận Hành</div><div class="menu-sub">Lương · Dầu · Điện · Khác</div>
+    </div>
+    <div class="menu-item mi-slate" onclick="setNavBtn(document.getElementById('nb-tc'));openTCPane();setTimeout(function(){switchTCTab('thuchi',document.getElementById('tab-thuchi'));},60)">
+      <div class="menu-icon">💹</div><div class="menu-label">Tài Chính</div><div class="menu-sub">Nhật ký Thu / Chi</div>
+    </div>
+    <div class="menu-item mi-gray" onclick="openSettings()">
+      <div class="menu-icon">🔧</div><div class="menu-label">Cài Đặt</div><div class="menu-sub">Cấu hình hệ thống</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="pane" id="pane-tinhtien" style="display:none;padding:0;overflow-y:auto;">
+  <div style="padding:14px; background: var(--iron-m); border-bottom:1px solid var(--bd); display:flex; justify-content:space-between; align-items:center;">
+    <div class="chung-title" style="margin:0;">💰 TÍNH TIỀN PHẾ LIỆU</div>
+    <button class="btn-copy" onclick="closeTinhTien()" style="padding:6px 12px;">← QUAY LẠI</button>
+  </div>
+  <div class="tt-root">
+
+<div class="header">
+  <h1>Phế Liệu Trung Hiếu</h1>
+  <div class="subtitle">Hệ thống tính toán thanh toán - Đa mặt hàng / xe</div>
+</div>
+
+<div class="date-bar">📅 <span id="dateDisplay"></span></div>
+
+<!-- Chọn mặt hàng -->
+<div class="mat-hang-label">Mặt hàng: <b id="tenMatHang">— Chưa chọn —</b> <span style="font-weight:400;color:var(--text-muted)">(chạm để chọn nhiều)</span></div>
+<div class="mat-hang-bar">
+  <button class="mh-btn" id="btn-sat" onclick="chonMatHang('sat')">
+    <span class="mh-icon">⚙️</span>Sắt
+  </button>
+  <button class="mh-btn" id="btn-tole" onclick="chonMatHang('tole')">
+    <span class="mh-icon">🔩</span>Tole
+  </button>
+  <button class="mh-btn" id="btn-lon" onclick="chonMatHang('lon')">
+    <span class="mh-icon">🥫</span>Lon
+  </button>
+  <button class="mh-btn" id="btn-satdac" onclick="chonMatHang('satdac')">
+    <span class="mh-icon">⛏️</span>Sắt Đặc
+  </button>
+</div>
+<div class="multi-hint" id="multiHint">Chọn 1 hoặc nhiều loại hàng trong cùng 1 xe</div>
+
+<!-- Khách hàng -->
+<div class="card">
+  <div class="card-title">Khách Hàng</div>
+  <div class="field-row">
+    <div class="field">
+      <label>Biển Số Xe</label>
+      <div class="ac-wrap">
+        <input type="text" id="bienSo" placeholder="51A-12345"
+          autocomplete="off" oninput="onBienSoInput()" onblur="onBienSoBlur()" onfocus="onBienSoFocus()">
+        <div class="ac-dropdown" id="acDropdown"></div>
+      </div>
+      <div class="kh-hint" id="khHint"></div>
+    </div>
+    <div class="field">
+      <label>Tên Khách Hàng</label>
+      <input type="text" id="tenKH" placeholder="Nguyễn Văn A"
+        autocomplete="off" oninput="onTenKHInput()">
+    </div>
+  </div>
+</div>
+
+<!-- Cân xe -->
+<div class="card">
+  <div class="card-title">Khối Lượng Xe</div>
+  <div id="klXeContainer" class="kl-grid-dynamic">
+    <div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:10px">Vui lòng chọn mặt hàng ở trên</div>
+  </div>
+</div>
+
+<!-- Tạp chất -->
+<div class="card">
+  <div class="card-title">Tạp Chất <span style="font-size:0.65rem;color:var(--text-muted);margin-left:6px;text-transform:none">≥0.5 làm tròn lên</span></div>
+  <div id="tapChatContainer" class="kl-grid-dynamic">
+    <div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:10px">Chưa có mặt hàng</div>
+  </div>
+
+  <!-- Nút toggle — chỉ hiện khi chỉ chọn 1 Sắt -->
+  <div class="extra-toggle-row" id="extraToggleRow" style="display:none;margin-top:14px">
+    <button class="toggle-btn" id="btnToleTrong" onclick="toggleSub('tole')">
+      + Tole trong Sắt
+    </button>
+    <button class="toggle-btn" id="btnLonTrong" onclick="toggleSub('lon')">
+      + Lon trong Sắt
+    </button>
+    <button class="toggle-btn" id="btnSatDacTrong" onclick="toggleSub('satdac')" style="grid-column:1/-1">
+      + Sắt Đặc trong Sắt
+    </button>
+  </div>
+
+  <!-- Panel Tole trong Sắt -->
+  <div class="sub-panel tole-panel" id="toleTrongPanel">
+    <div class="sub-panel-title">🔩 Tole Trong Sắt</div>
+    <div class="field-row">
+      <div class="field">
+        <label>KL Tole (kg)</label>
+        <input type="number" id="klToleTrong" placeholder="0" inputmode="decimal" step="any"
+          style="border-color:var(--success-border);">
+        <div class="unit">kg</div>
+      </div>
+      <div class="field">
+        <label>TC Tole %</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="tcTolePct" value="2" inputmode="decimal" step="any"
+            style="border-color:var(--success-border);color:var(--success);flex:1;">
+          <button class="pct-preset on-tole" onclick="document.getElementById('tcTolePct').value=2">2%</button>
+        </div>
+        <div class="unit">%</div>
+      </div>
+    </div>
+    <div class="field-row single">
+      <div class="field">
+        <label>Đơn Giá Tole (đ/kg)</label>
+        <input type="number" id="donGiaTole" placeholder="0" inputmode="decimal" step="any"
+          style="border-color:var(--success-border);">
+        <div class="unit">đ / kg</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Lon trong Sắt -->
+  <div class="sub-panel lon-panel" id="lonTrongPanel">
+    <div class="sub-panel-title">🥫 Lon Trong Sắt</div>
+    <div class="field-row">
+      <div class="field">
+        <label>KL Lon (kg)</label>
+        <input type="number" id="klLonTrong" placeholder="0" inputmode="decimal" step="any"
+          style="border-color:#3A7AAA;">
+        <div class="unit">kg</div>
+      </div>
+      <div class="field">
+        <label>TC Lon %</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input type="number" id="tcLonPct" value="2" inputmode="decimal" step="any"
+            style="border-color:#3A7AAA;color:#5AAAD8;flex:1;">
+          <button class="pct-preset on-lon" onclick="document.getElementById('tcLonPct').value=2">2%</button>
+        </div>
+        <div class="unit">%</div>
+      </div>
+    </div>
+    <div class="field-row single">
+      <div class="field">
+        <label>Đơn Giá Lon (đ/kg)</label>
+        <input type="number" id="donGiaLon" placeholder="0" inputmode="decimal" step="any"
+          style="border-color:#3A7AAA;">
+        <div class="unit">đ / kg</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel Sắt Đặc trong Sắt -->
+  <div class="sub-panel satdac-panel" id="satdacTrongPanel">
+    <div class="sub-panel-title">⛏️ Sắt Đặc Trong Sắt</div>
+    <div class="field-row">
+      <div class="field">
+        <label>KL Sắt Đặc (kg)</label>
+        <input type="number" id="klSatDacTrong" placeholder="0" inputmode="decimal" step="any"
+          style="border-color:var(--purple-border);">
+        <div class="unit">kg</div>
+      </div>
+      <div class="field">
+        <label>TC S.Đặc %</label>
+        <input type="number" id="tcSatDacPct" value="2" inputmode="decimal" step="any" readonly
+          style="border-color:var(--purple-border);color:var(--purple);"
+          onclick="unlockField(this,'tcSatDacClicks')">
+        <div class="unit">%</div>
+      </div>
+    </div>
+    <div class="field-row single">
+      <div class="field">
+        <label>Đơn Giá Sắt Đặc (đ/kg)</label>
+        <input type="number" id="donGiaSatDac" placeholder="0" inputmode="decimal" step="any"
+          style="border-color:var(--purple-border);">
+        <div class="unit">đ / kg</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Đơn giá chính -->
+<div class="card">
+  <div class="card-title">Đơn Giá <span id="donGiaTitle" style="color:var(--orange-light);margin-left:6px;font-size:0.75rem"></span></div>
+  <div id="donGiaContainer" class="kl-grid-dynamic">
+    <div style="text-align:center;color:var(--text-muted);font-size:0.85rem;padding:10px">Chưa có mặt hàng</div>
+  </div>
+</div>
+
+<!-- Chi tiết bước tính -->
+<div class="steps-card" id="stepsCard">
+  <div class="steps-title">📐 Chi Tiết Tính</div>
+  <div id="stepsContent"></div>
+</div>
+
+<!-- Bảng kết quả -->
+<div class="result-table-wrap" id="resultTableWrap">
+  <div class="scroll-hint">← Vuốt để xem →</div>
+  <table class="result-table">
+    <thead>
+      <tr>
+        <th>Ngày</th>
+        <th>NHẬP</th>
+        <th>Tên KH</th>
+        <th>Hàng</th>
+        <th>KL HÀNG</th>
+        <th>TC (kg)</th>
+        <th>KL THỰC</th>
+        <th>Đơn Giá</th>
+        <th>Thành Tiền</th>
+        <th></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="resultTableBody"></tbody>
+  </table>
+</div>
+
+<!-- Tổng nổi bật -->
+<div class="result-summary" id="resultSummary">
+  <div class="rs-label">Tổng Thành Tiền</div>
+  <div class="rs-big" id="rsBig">—</div>
+  <div class="rs-sub" id="rsSub"></div>
+</div>
+
+<!-- HÓA ĐƠN -->
+<div class="invoice-wrap" id="invoiceWrap" style="display:none;margin-bottom:20px">
+  <div class="invoice-card" id="invoiceCard" style="background:#FFFFFF;color:#111;border-radius:16px;padding:20px;border:2px solid #D97757;font-family:Inter,sans-serif">
+    <div style="text-align:center;border-bottom:2px dashed #ddd;padding-bottom:12px;margin-bottom:14px">
+      <h2 style="font-size:1.4rem;color:#D97757;margin:0 0 4px 0">Phế Liệu Trung Hiếu</h2>
+      <div style="font-size:0.8rem;color:#666;letter-spacing:0.05em">HÓA ĐƠN THANH TOÁN</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;font-size:0.85rem">
+      <div><div style="color:#888;font-size:0.68rem;font-weight:700;text-transform:uppercase">Khách hàng</div><div style="font-weight:700;font-size:0.95rem" id="invTenKH">—</div></div>
+      <div><div style="color:#888;font-size:0.68rem;font-weight:700;text-transform:uppercase">Biển số</div><div style="font-weight:700" id="invBienSo">—</div></div>
+      <div><div style="color:#888;font-size:0.68rem;font-weight:700;text-transform:uppercase">Ngày giờ</div><div style="font-weight:600" id="invNgayGio">—</div></div>
+      <div><div style="color:#888;font-size:0.68rem;font-weight:700;text-transform:uppercase">Số loại</div><div style="font-weight:600" id="invSoLoai">—</div></div>
+    </div>
+    <div id="invDetail"></div>
+    <div style="border-top:2px solid #D97757;margin-top:14px;padding-top:12px;text-align:center">
+      <div style="font-size:0.7rem;color:#888;text-transform:uppercase;letter-spacing:0.1em">Tổng thành tiền</div>
+      <div style="font-size:1.9rem;font-weight:800;color:#D97757;margin-top:4px" id="invTongTien">0 đ</div>
+    </div>
+    <div style="text-align:center;margin-top:14px;font-size:0.68rem;color:#999;border-top:1px dashed #ddd;padding-top:10px">Cảm ơn quý khách! • Phế Liệu Trung Hiếu</div>
+  </div>
+</div>
+
+
+<!-- Nút hành động -->
+
+<div class="btn-row">
+  <button class="btn btn-calc" onclick="calculate()">⚡ TÍNH</button>
+  <button class="btn btn-reset" onclick="resetForm()">↺ XÓA</button>
+  <button class="btn" id="btnCreateInvoice" onclick="createInvoice()" style="background:linear-gradient(135deg,#D97757 0%, #B86A4D 100%);color:#fff;grid-column:1/-1">🧾 TẠO HÓA ĐƠN</button>
+  <button class="btn" id="btnCopyInvoiceImg" onclick="copyInvoiceImage()" style="background:#111;border:1.5px solid var(--orange-primary);color:var(--orange-light);grid-column:1/-1">📸 COPY ẢNH HÓA ĐƠN</button>
+  <button class="btn btn-copy" id="btnCopy" onclick="copyResult()" style="display:none">📋 SAO CHÉP (Excel)</button>
+  <button class="btn btn-copy" id="btnDownloadCSV" onclick="downloadCSV()" style="display:none;background:linear-gradient(135deg,#0a2a1a,#0d4a2a);border-color:#3AAA6A;color:#5AD08A;">📥 TẢI FILE CSV</button>
+  <button class="btn btn-copy" id="btnCopyZalo" onclick="copyResultZalo()" style="display:none;background:linear-gradient(135deg,#0a1f3a,#0d3060);border-color:#1E90FF;color:#5BAEF5;">📤 GỬI ZALO / MESSENGER</button>
+  <button class="btn btn-copy" id="btnCopyBangKe" onclick="copyBangKe()" style="display:none;background:linear-gradient(135deg,#2a1a0a,#4a2a0d);border-color:#D97757;color:#FFB896;">📑 COPY VÀO BẢNG KÊ</button>
+</div>
+
+
+<!-- JSON sync panel -->
+<div style="margin-top:12px;">
+  <button class="toggle-btn" onclick="toggleJsonPanel()" id="btnJsonToggle" style="width:100%;margin-bottom:8px;">
+    📂 NHẬP / XUẤT DỮ LIỆU (JSON)
+  </button>
+  <div class="json-panel" id="jsonPanel">
+    <div class="json-panel-title">Đồng bộ dữ liệu</div>
+    <div class="json-btn-row">
+      <button class="btn-json export" onclick="exportJSON()">⬆️ Xuất JSON</button>
+      <button class="btn-json import" onclick="document.getElementById('importFile').click()">⬇️ Nhập JSON</button>
+      <button class="btn-json" onclick="exportHistoryExcel()" style="grid-column:1/-1">📊 Xuất Lịch Sử → Excel (CSV)</button>
+    </div>
+    <div class="json-info" id="jsonInfo">Lịch sử: <span id="histCount">0</span> lần cân • KH: <span id="khCount">0</span> xe</div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+  </div>
+</div>
+
+<div class="toast" id="toast">✅ Đã sao chép!</div>
+
+</div>
+  <script src="js/tinhtien.js"></script>
+</div>
+
+</div><!-- /scroll-body -->
+
+<!-- ══ BOTTOM NAV ══ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nb-home" onclick="ThShell.go('home')">
+    <span class="nav-btn-icon">🏗️</span><span class="nav-btn-label">Tổng Quan</span>
+  </button>
+  <button class="nav-btn" id="nb-nxt" onclick="setNavBtn(this);showNXTPane()">
+    <span class="nav-btn-icon">📊</span><span class="nav-btn-label">Nhập-Xuất-Tồn</span>
+  </button>
+  <button class="nav-btn" id="nb-kh" onclick="setNavBtn(this);openKH()">
+    <span class="nav-btn-icon">👥</span><span class="nav-btn-label">Khách Hàng</span>
+  </button>
+  <button class="nav-btn" id="nb-tc" onclick="setNavBtn(this);openTCPane()">
+    <span class="nav-btn-icon">💹</span><span class="nav-btn-label">Tài Chính</span>
+  </button>
+  <button class="nav-btn" id="nb-chung" onclick="setNavBtn(this);openNavPane('chung')">
+    <span class="nav-btn-icon">☰</span><span class="nav-btn-label">Chung</span>
+  </button>
+</nav>
+
+<!-- ══ NHẬT KÝ MODAL — body level so it works from any pane ══ -->
+<div class="nk-ovl" id="nkOvl" onclick="if(event.target===this)closeNhatKy()">
+  <div class="nk-modal">
+    <div class="nk-hdr">
+      <h3>📋 NHẬT KÝ NHẬP HÀNG CHI TIẾT</h3>
+      <div class="nk-hdr-r">
+        <span class="nk-badge" id="nkBadge">0 dòng</span>
+        <button class="btn-nk-close" onclick="closeNhatKy()">✕</button>
+      </div>
+    </div>
+    <div class="nk-toolbar">
+      <span class="nk-status no-data" id="nkFileStatus">⚠️ Chưa nạp file</span>
+      <button class="btn-nk-write" onclick="writeLogFromRaw()">✍ GHI NHẬT KÝ</button>
+      <button class="btn-nk-copy" onclick="copyLog()">📋 Copy Nhanh</button>
+      <button class="btn-nk-export" onclick="exportLog()">💾 Xuất Excel</button>
+      <button class="btn-nk-je" onclick="exportBackupJSON()">⬇ Xuất JSON</button>
+      <button class="btn-nk-ji" onclick="triggerImportJSON()">⬆ Nhập JSON</button>
+      <input type="file" id="jsonImportInput" accept=".json" style="display:none" onchange="handleImportJSON(event)">
+      <button class="btn-nk-clear" onclick="clearLog()">🗑 Xóa</button>
+    </div>
+    <div class="nk-info" id="nkInfo"></div>
+    <div class="nk-tbl-wrap" id="nkTableWrap"><div class="nk-empty">📋 Chưa có nhật ký. Nạp file bảng kê rồi bấm GHI NHẬT KÝ.</div></div>
+    <div class="nk-footer">
+      <span>Chỉ ghi thêm · Bấm 2 lần dòng để sửa ghi chú</span>
+      <span id="nkFooterR"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ KHÁCH HÀNG FULL OVERLAY ══ -->
+<div class="kh-ovl" id="khOvl" onclick="if(event.target===this)closeKH()">
+  <div class="kh-modal">
+    <div class="kh-modal-header">
+      <div class="kh-hd-left"><span class="kh-hd-icon">👤</span><h3>DANH BẠ &amp; LỊCH SỬ GIAO DỊCH</h3><span class="kh-hd-badge" id="khHdBadge">0 khách</span></div>
+      <div class="kh-hd-right"><button class="btn-kh-close" onclick="closeKH()">✕</button></div>
+    </div>
+    <div class="kh-filter-bar">
+      <div class="kh-fg"><label>🔍 Tìm khách hàng</label>
+        <div class="kh-search-wrap"><span class="kh-si">🔍</span>
+          <input type="text" id="khSearchInput" placeholder="Nhập tên..." autocomplete="off"
+            oninput="onKHSearchInput(this.value)" onkeydown="onKHSearchKey(event)">
+          <div class="kh-sugg" id="khSuggestions"></div>
+        </div>
+      </div>
+      <div class="kh-fg"><label>📅 Từ ngày</label><input type="date" id="khDateFrom"></div>
+      <div class="kh-fg"><label>📅 Đến ngày</label><input type="date" id="khDateTo"></div>
+      <div class="kh-fg" style="justify-content:flex-end;"><label>&nbsp;</label>
+        <div style="display:flex;gap:6px;">
+          <button class="btn-kh-go" onclick="renderKHTable()">🔍 Xem</button>
+          <button class="btn-kh-reset" onclick="resetKHFilter()">↻ Reset</button>
+        </div>
+      </div>
+    </div>
+    <div class="kh-stats" id="khStats">
+      <div class="kh-stat-cell"><div class="kh-sc-label">Khách hàng</div><div class="kh-sc-val" id="ksSumName">—</div></div>
+      <div class="kh-stat-cell"><div class="kh-sc-label">Số TK</div><div class="kh-sc-val" id="ksSumSTK">—</div></div>
+      <div class="kh-stat-cell"><div class="kh-sc-label">Ngân hàng</div><div class="kh-sc-val" id="ksSumBank">—</div></div>
+      <div class="kh-stat-cell"><div class="kh-sc-label">Số phiếu</div><div class="kh-sc-val" id="ksSumCount">0</div></div>
+      <div class="kh-stat-cell"><div class="kh-sc-label">KL Thực (kg)</div><div class="kh-sc-val" id="ksSumKL">0</div></div>
+      <div class="kh-stat-cell"><div class="kh-sc-label">Tổng Tiền TT</div><div class="kh-sc-val hi" id="ksSumTien">0</div></div>
+    </div>
+    <div class="kh-bar">
+      <span class="kh-bar-info" id="khBarInfo">Nhấn "Xem" để hiển thị</span>
+      <div class="kh-bar-btns">
+        <button class="btn-kh-sort active" id="btnSortAZ" onclick="setKHSort('az')">🔤 A→Z</button>
+        <button class="btn-kh-sort" id="btnSortKL" onclick="setKHSort('kl')">▼ KL</button>
+        <button class="btn-kh-xl" onclick="exportKHTable()">💾 Excel</button>
+        <button class="btn-kh-cp" onclick="copyKHTable()">📋 Copy</button>
+      </div>
+    </div>
+    <div class="kh-tscroll" id="khTableScroll"><div class="kh-empty">👤 Nhấn "Xem" để tải dữ liệu.</div></div>
+    <div class="kh-footer"><span id="khFooterL">Lưu trữ: localStorage</span><span id="khFooterR"></span></div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS OVERLAY ══ -->
+<div class="ovl" id="settingsOvl" onclick="if(event.target===this)closeSettings()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">🔧 Cài Đặt</div>
+    <div class="sheet-label">Google Sheet URL (JSON API)</div>
+    <input type="url" class="sheet-inp" id="drawerSheetUrl" placeholder="https://sheets.googleapis.com/v4/spreadsheets/..." inputmode="url">
+    <button class="btn-full" onclick="saveSettings()">LƯU KẾT NỐI</button>
+    <div class="divider"></div>
+    <div class="sheet-label">Thông Tin Hệ Thống</div>
+    <div class="info-row"><span>Phiên bản</span><span>v2.2</span></div>
+    <div class="info-row"><span>Tự động đồng bộ</span><span>5 phút/lần</span></div>
+    <div class="info-row"><span>Trạng thái</span><span id="settingsSyncSt">Sẵn sàng</span></div>
+    <div class="info-row"><span>Lần cuối</span><span id="settingsLastSync">–</span></div>
+    <div class="sheet-label" style="margin-top:10px;">Hướng dẫn URL</div>
+    <div style="font-size:11px;color:var(--text-f);line-height:1.6;margin-bottom:12px;">
+      Dán URL dạng:<br>
+      <code style="color:var(--copper-p);font-size:10px;">https://sheets.googleapis.com/v4/spreadsheets/{ID}/values/NHẬP-%20XUẤT%20-%20TỒN!A2:E2?key={API_KEY}</code>
+    </div>
+    <div class="divider"></div>
+    <button class="btn-ghost" onclick="closeSettings()">ĐÓNG</button>
+  </div>
+</div>
+
+<!-- ══ CONVERT MODAL ══ -->
+<div class="modal-ovl" id="convertOvl" onclick="if(event.target===this)closeConvert()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⇄ Chuyển Đổi Hàng</div>
+    <div class="modal-sub">Chuyển tồn kho giữa các loại mặt hàng</div>
+    <div class="cvt-grid">
+      <div><div class="cvt-lbl">Từ mặt hàng</div>
+        <select class="cvt-sel" id="fromItem" onchange="updateCvtPreview()">
+          <option value="sat">🔵 Sắt</option><option value="tole">🟢 Tole</option>
+          <option value="lon">🟣 Lon</option><option value="sac">🟠 Sắt Đặc</option>
+        </select>
+      </div>
+      <div class="cvt-arr">→</div>
+      <div><div class="cvt-lbl">Sang mặt hàng</div>
+        <select class="cvt-sel" id="toItem" onchange="updateCvtPreview()">
+          <option value="tole">🟢 Tole</option><option value="sat">🔵 Sắt</option>
+          <option value="lon">🟣 Lon</option><option value="sac">🟠 Sắt Đặc</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row2">
+      <div><div class="form-lbl">Khối lượng (Tấn)</div>
+        <input type="number" class="form-inp" id="convertKL" placeholder="0.0" min="0" step="0.1" inputmode="decimal" oninput="updateCvtPreview()">
+      </div>
+      <div><div class="form-lbl">Ghi chú</div>
+        <input type="text" class="form-inp" id="convertNote" placeholder="Lý do...">
+      </div>
+    </div>
+    <div class="cvt-prev" id="cvtPreview">Điền khối lượng để xem trước...</div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeConvert()">HỦY</button>
+      <button class="btn-confirm" onclick="confirmConvert()">✓ Xác Nhận &amp; Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP TOAST -->
+<div class="app-toast" id="appToast"></div>
+
+<script src="js/app.js"></script>
+
+<!-- ══ TÀI CHÍNH MODULE JS ══ -->
+<script src="js/taichinh.js"></script>
+<!-- ══ HÀNH CHÍNH OVERLAY ══ -->
+<div class="hc-overlay" id="hcOvl" onclick="if(event.target===this)closeHanhChinh()">
+  <div class="hc-modal">
+    <div class="hc-header">
+      <div class="hc-header-left">
+        <div class="hc-header-badge">⚙ PHẾ LIỆU TRUNG HIẾU</div>
+        <div class="hc-header-title">QUẢN LÝ HÀNH CHÍNH</div>
+      </div>
+      <button class="hc-close" onclick="closeHanhChinh()">✕</button>
+    </div>
+    <div class="hc-body">
+      <div class="hc-grid">
+        <!-- NHÂN SỰ -->
+        <div class="hc-section">
+          <div class="hc-sec-header">
+            <span class="hc-sec-icon">👤</span>
+            <span class="hc-sec-title">NHÂN SỰ</span>
+            <span class="hc-sec-badge">3</span>
+          </div>
+          <div class="hc-divider"></div>
+          <ul class="hc-doc-list">
+            <li class="hc-doc-item" data-hcdoc="Hợp đồng lao động KCS" onclick="hcOpenEditor('Hợp đồng lao động KCS')">
+              <span class="hc-doc-name">📄 Hợp đồng lao động KCS</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Hợp đồng lao động KCS')" title="Thêm mẫu .doc">+</button>
+            </li>
+            <li class="hc-doc-item" data-hcdoc="Hợp đồng lao động tạp vụ" onclick="hcOpenEditor('Hợp đồng lao động tạp vụ')">
+              <span class="hc-doc-name">📄 Hợp đồng lao động tạp vụ</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Hợp đồng lao động tạp vụ')" title="Thêm mẫu .doc">+</button>
+            </li>
+            <li class="hc-doc-item" data-hcdoc="Giấy giới thiệu" onclick="hcOpenEditor('Giấy giới thiệu')">
+              <span class="hc-doc-name">📋 Giấy giới thiệu</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Giấy giới thiệu')" title="Thêm mẫu .doc">+</button>
+            </li>
+          </ul>
+        </div>
+        <!-- VẬN CHUYỂN -->
+        <div class="hc-section">
+          <div class="hc-sec-header">
+            <span class="hc-sec-icon">🚢</span>
+            <span class="hc-sec-title">VẬN CHUYỂN</span>
+            <span class="hc-sec-badge">1</span>
+          </div>
+          <div class="hc-divider"></div>
+          <ul class="hc-doc-list">
+            <li class="hc-doc-item" data-hcdoc="Hợp đồng thuê vận chuyển" onclick="hcOpenEditor('Hợp đồng thuê vận chuyển')">
+              <span class="hc-doc-name">📄 Hợp đồng thuê vận chuyển</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Hợp đồng thuê vận chuyển')" title="Thêm mẫu .doc">+</button>
+            </li>
+          </ul>
+        </div>
+        <!-- MUA BÁN -->
+        <div class="hc-section">
+          <div class="hc-sec-header">
+            <span class="hc-sec-icon">🤝</span>
+            <span class="hc-sec-title">MUA BÁN</span>
+            <span class="hc-sec-badge">4</span>
+          </div>
+          <div class="hc-divider"></div>
+          <ul class="hc-doc-list">
+            <li class="hc-doc-item" data-hcdoc="Hợp đồng nguyên tắc" onclick="hcOpenEditor('Hợp đồng nguyên tắc')">
+              <span class="hc-doc-name">📄 Hợp đồng nguyên tắc</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Hợp đồng nguyên tắc')" title="Thêm mẫu .doc">+</button>
+            </li>
+            <li class="hc-doc-item" data-hcdoc="Báo giá" onclick="hcOpenEditor('Báo giá')">
+              <span class="hc-doc-name">📊 Báo giá</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Báo giá')" title="Thêm mẫu .doc">+</button>
+            </li>
+            <li class="hc-doc-item" data-hcdoc="Đề nghị thanh toán" onclick="hcOpenEditor('Đề nghị thanh toán')">
+              <span class="hc-doc-name">💰 Đề nghị thanh toán</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Đề nghị thanh toán')" title="Thêm mẫu .doc">+</button>
+            </li>
+            <li class="hc-doc-item" data-hcdoc="Phiếu chào mua" onclick="hcOpenEditor('Phiếu chào mua')">
+              <span class="hc-doc-name">📑 Phiếu chào mua</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Phiếu chào mua')" title="Thêm mẫu .doc">+</button>
+            </li>
+          </ul>
+        </div>
+        <!-- KHO -->
+        <div class="hc-section">
+          <div class="hc-sec-header">
+            <span class="hc-sec-icon">🏭</span>
+            <span class="hc-sec-title">KHO</span>
+            <span class="hc-sec-badge">1</span>
+          </div>
+          <div class="hc-divider"></div>
+          <ul class="hc-doc-list">
+            <li class="hc-doc-item" data-hcdoc="Phiếu xuất kho" onclick="hcOpenEditor('Phiếu xuất kho')">
+              <span class="hc-doc-name">📤 Phiếu xuất kho</span>
+              <button class="hc-btn-add" onclick="event.stopPropagation();hcAddTemplate('Phiếu xuất kho')" title="Thêm mẫu .doc">+</button>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div style="margin-top:22px;opacity:.3;font-size:10px;letter-spacing:2px;display:flex;gap:24px;font-family:'Barlow Condensed',sans-serif;">
+        <span>HUMAN RESOURCES</span><span>TRANSPORT</span><span>SALES</span><span>WAREHOUSE</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HÀNH CHÍNH EDITOR OVERLAY ══ -->
+<div class="hc-editor-ovl" id="hcEditorOvl" onclick="if(event.target===this)hcCloseEditor()">
+  <div class="hc-editor-modal">
+    <div class="hc-editor-hdr">
+      <span class="hc-editor-title" id="hcEditorTitle">Tài liệu</span>
+      <button class="hc-close" onclick="hcCloseEditor()">✕</button>
+    </div>
+    <div class="hc-editor-body">
+      <div id="hcQuillEditor"></div>
+    </div>
+    <div class="hc-editor-ftr">
+      <button class="hc-btn-secondary" onclick="hcCloseEditor()">Hủy</button>
+      <button class="hc-btn-secondary" onclick="hcExportImage()">🖼 Lưu ảnh</button>
+      <button class="hc-btn-primary" onclick="hcSaveDocument()">💾 Lưu tài liệu</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/hanhchinh.js"></script>
+
+<!-- ══ V3: Dữ liệu 2 tháng · Tổng quan · Trợ lý AI ══ -->
+<script src="js/v3/datahub.js"></script>
+<script src="js/v3/ai-engine.js"></script>
+<script src="js/v3/dashboard.js"></script>
+<script src="js/v3/ai-ui.js"></script>
+<script src="js/v3/shell.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
