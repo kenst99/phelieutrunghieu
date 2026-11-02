@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  <url>
+    <loc>https://phelieusatsoctrang.vercel.app/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image><image:loc>https://phelieusatsoctrang.vercel.app/assets/mat-tien-phe-lieu-trung-hieu.webp</image:loc></image:image>
+    <image:image><image:loc>https://phelieusatsoctrang.vercel.app/assets/ve-tinh-bai-phe-lieu-trung-hieu.webp</image:loc></image:image>
+    <video:video>
+      <video:thumbnail_loc>https://phelieusatsoctrang.vercel.app/assets/video-bai-poster.webp</video:thumbnail_loc>
+      <video:title>Video thật bãi phế liệu Trung Hiếu – 337 Bạch Đằng, Sóc Trăng</video:title>
+      <video:description>Toàn cảnh bãi phế liệu sắt thép Trung Hiếu: bàn cân xe, xe cuốc gắp, đống lon sắt, tole, cổng và văn phòng.</video:description>
+      <video:content_loc>https://phelieusatsoctrang.vercel.app/assets/video-bai-phe-lieu-trung-hieu.mp4</video:content_loc>
+    </video:video>
+    <video:video>
+      <video:thumbnail_loc>https://phelieusatsoctrang.vercel.app/assets/chi-duong-poster.webp</video:thumbnail_loc>
+      <video:title>Đường đến bãi phế liệu Trung Hiếu từ Bệnh viện Đa khoa Sóc Trăng</video:title>
+      <video:description>Từ Bệnh viện Đa khoa Sóc Trăng qua Khu dân cư 5A, Cầu Mạc Đĩnh Chi, quẹo phải vào đường Bạch Đằng, thêm khoảng 800 m là tới bãi.</video:description>
+      <video:content_loc>https://phelieusatsoctrang.vercel.app/assets/chi-duong-den-bai-trung-hieu.mp4</video:content_loc>
+    </video:video>
+  </url>
+</urlset>
